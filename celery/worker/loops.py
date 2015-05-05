@@ -47,6 +47,11 @@ def asynloop(obj, connection, consumer, blueprint, hub, qos,
     if not obj.restart_count and not obj.pool.did_start_ok():
         raise WorkerLostError('Could not start worker processes')
 
+    # Fixes bug when messages are not processed if worker was started 
+    # without gossip, mingle and heart
+    # see https://github.com/celery/celery/issues/1847#issuecomment-36961574
+    connection.drain_events()
+
     # FIXME: Use loop.run_forever
     # Tried and works, but no time to test properly before release.
     hub.propagate_errors = errors
