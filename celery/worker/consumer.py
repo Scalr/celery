@@ -155,12 +155,11 @@ class Consumer(object):
 
     class Blueprint(bootsteps.Blueprint):
         name = 'Consumer'
+        # [FAM-328] We remove Events, Gossip, Heartbeat and Mingle from default
+        # steps because they are not used by us but interfere with amqp
+        # heartbeats we need.
         default_steps = [
             'celery.worker.consumer:Connection',
-            'celery.worker.consumer:Mingle',
-            'celery.worker.consumer:Events',
-            'celery.worker.consumer:Gossip',
-            'celery.worker.consumer:Heart',
             'celery.worker.consumer:Control',
             'celery.worker.consumer:Tasks',
             'celery.worker.consumer:Evloop',
@@ -202,8 +201,10 @@ class Consumer(object):
         self.task_buckets = defaultdict(lambda: None)
         self.reset_rate_limits()
 
+        self.gevent_env = _detect_environment() == 'gevent'
+
         self.hub = hub
-        if self.hub:
+        if self.hub or self.gevent_env:
             self.amqheartbeat = amqheartbeat
             if self.amqheartbeat is None:
                 self.amqheartbeat = self.app.conf.BROKER_HEARTBEAT
@@ -213,7 +214,7 @@ class Consumer(object):
         if not hasattr(self, 'loop'):
             self.loop = loops.asynloop if hub else loops.synloop
 
-        if _detect_environment() == 'gevent':
+        if self.gevent_env:
             # there's a gevent bug that causes timeouts to not be reset,
             # so if the connection timeout is exceeded once, it can NEVER
             # connect again.
@@ -377,6 +378,13 @@ class Consumer(object):
         )
         if self.hub:
             conn.transport.register_with_event_loop(conn.connection, self.hub)
+
+        # Install timer to send heartbeats on gevent
+        if self.gevent_env:
+            hbtick = conn.heartbeat_check
+            logger.debug('Registring heartbeat timer for connection: {}'.format(id(conn)))
+            self.timer.call_repeatedly(int(self.amqheartbeat / self.amqheartbeat_rate), hbtick, (self.amqheartbeat_rate,))
+
         return conn
 
     def add_task_queue(self, queue, exchange=None, exchange_type=None,
@@ -587,7 +595,7 @@ class Mingle(bootsteps.StartStopStep):
 
 
 class Tasks(bootsteps.StartStopStep):
-    requires = (Mingle, )
+    requires = (Connection, )
 
     def __init__(self, c, **kwargs):
         c.task_consumer = c.qos = None

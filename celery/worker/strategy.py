@@ -28,12 +28,12 @@ def default(task, app, consumer,
             info=logger.info, error=logger.error, task_reserved=task_reserved,
             to_system_tz=timezone.to_system):
     hostname = consumer.hostname
-    eventer = consumer.event_dispatcher
+    eventer = False
     Req = Request
     connection_errors = consumer.connection_errors
     _does_info = logger.isEnabledFor(logging.INFO)
     events = eventer and eventer.enabled
-    send_event = eventer.send
+    # send_event = eventer.send
     call_at = consumer.timer.call_at
     apply_eta_task = consumer.apply_eta_task
     rate_limits_enabled = not consumer.disable_rate_limits
