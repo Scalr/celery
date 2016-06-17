@@ -31,6 +31,7 @@ from kombu.syn import _detect_environment
 from kombu.utils.compat import get_errno
 from kombu.utils.encoding import safe_repr, bytes_t
 from kombu.utils.limits import TokenBucket
+import amqp.exceptions
 
 from celery import bootsteps
 from celery.app.trace import build_tracer
@@ -306,7 +307,9 @@ class Consumer(object):
                     crit('Frequent restarts detected: %r', exc, exc_info=1)
                     sleep(1)
                 if blueprint.state != CLOSE and self.connection:
-                    warn(CONNECTION_RETRY, exc_info=True)
+                    # [FAM-254]
+                    needs_exc_info = not isinstance(exc, amqp.exceptions.ConnectionForced)
+                    warn(CONNECTION_RETRY, exc_info=needs_exc_info)
                     try:
                         self.connection.collect()
                     except Exception:
