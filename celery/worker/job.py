@@ -179,6 +179,8 @@ class Request(object):
         if message:
             delivery_info = message.delivery_info or {}
             properties = message.properties or {}
+            if properties.get('user_id'):
+                message.headers['amqp_user_id'] = properties.get('user_id')
             body.update({
                 'headers': message.headers,
                 'reply_to': properties.get('reply_to'),
