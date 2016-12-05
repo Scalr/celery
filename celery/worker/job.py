@@ -179,20 +179,20 @@ class Request(object):
         if message:
             delivery_info = message.delivery_info or {}
             properties = message.properties or {}
+            body_delivery_info = {
+                'exchange': delivery_info.get('exchange'),
+                'routing_key': delivery_info.get('routing_key'),
+                'priority': properties.get(
+                    'priority', delivery_info.get('priority')),
+                'redelivered': delivery_info.get('redelivered'),
+            }
             if properties.get('user_id'):
-                message.headers['amqp_user_id'] = properties.get('user_id')
+                body_delivery_info['amqp_user_id'] = properties.get('user_id')
             body.update({
                 'headers': message.headers,
                 'reply_to': properties.get('reply_to'),
                 'correlation_id': properties.get('correlation_id'),
-                'delivery_info': {
-                    'exchange': delivery_info.get('exchange'),
-                    'routing_key': delivery_info.get('routing_key'),
-                    'priority': properties.get(
-                        'priority', delivery_info.get('priority')),
-                    'redelivered': delivery_info.get('redelivered'),
-                }
-
+                'delivery_info': body_delivery_info,
             })
         else:
             body.update(DEFAULT_FIELDS)
