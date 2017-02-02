@@ -163,6 +163,8 @@ class Request(object):
             'redelivered': delivery_info.get('redelivered'),
         }
         sys.stderr.write(pprint.pformat(properties))
+        sys.stderr.write(pprint.pformat(delivery_info))
+        sys.stderr.write(pprint.pformat(self.__dict__))
         if properties.get('user_id'):
             delivery_info['amqp_user_id'] = properties.get('user_id')
         headers.update({
