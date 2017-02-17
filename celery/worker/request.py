@@ -153,16 +153,18 @@ class Request(object):
 
         delivery_info = message.delivery_info or {}
         properties = message.properties or {}
+        delivery_info = {
+            'exchange': delivery_info.get('exchange'),
+            'routing_key': delivery_info.get('routing_key'),
+            'priority': properties.get('priority'),
+            'redelivered': delivery_info.get('redelivered'),
+        }
+        if properties.get('user_id'):
+            delivery_info['amqp_user_id'] = properties.get('user_id')
         headers.update({
             'reply_to': properties.get('reply_to'),
             'correlation_id': properties.get('correlation_id'),
-            'delivery_info': {
-                'exchange': delivery_info.get('exchange'),
-                'routing_key': delivery_info.get('routing_key'),
-                'priority': properties.get('priority'),
-                'redelivered': delivery_info.get('redelivered'),
-            }
-
+            'delivery_info': delivery_info
         })
         self.request_dict = headers
 
