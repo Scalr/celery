@@ -206,7 +206,7 @@ class WorkController(object):
     def on_error(self, exc, intervals, _):
         msg = "Critical object is not available: %s\nTrying to consume again %s..."
         interval = next(intervals)
-        logger.error(msg, exc, humanize_seconds(interval, 'in', ' '))
+        logger.debug(msg, exc, humanize_seconds(interval, 'in', ' '))
         return interval
 
     def start(self):
