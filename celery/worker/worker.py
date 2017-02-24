@@ -211,9 +211,8 @@ class WorkController(object):
 
     def start(self):
         _start = functools.partial(self.blueprint.start, self)
-        _on_error = functools.partial(self.on_error, self)
         try:
-            retry_over_time(_start, amqp_exceptions.NotFound, errback=_on_error)
+            retry_over_time(_start, amqp_exceptions.NotFound, errback=self.on_error)
         except WorkerTerminate:
             self.terminate()
         except Exception as exc:
