@@ -16,12 +16,15 @@ from __future__ import absolute_import, unicode_literals
 
 import os
 import sys
+import functools
 try:
     import resource
 except ImportError:  # pragma: no cover
     resource = None  # noqa
 
+from amqp import exceptions as amqp_exceptions
 from billiard import cpu_count
+from kombu.utils import retry_over_time
 from kombu.utils.compat import detect_environment
 
 from celery import bootsteps
@@ -37,6 +40,7 @@ from celery.utils.imports import reload_from_cwd
 from celery.utils.log import mlevel, worker_logger as logger
 from celery.utils.nodenames import default_nodename, worker_direct
 from celery.utils.text import str_to_list
+from celery.utils.time import humanize_seconds
 from celery.utils.threads import default_socket_timeout
 
 from . import state
@@ -198,9 +202,17 @@ class WorkController(object):
     def _send_worker_shutdown(self):
         signals.worker_shutdown.send(sender=self)
 
+    # [FAM-720]
+    def on_error(self, exc, intervals, _):
+        msg = "Critical object is not available: %s\nTrying to consume again %s..."
+        interval = next(intervals)
+        logger.debug(msg, exc, humanize_seconds(interval, 'in', ' '))
+        return interval
+
     def start(self):
+        _start = functools.partial(self.blueprint.start, self)
         try:
-            self.blueprint.start(self)
+            retry_over_time(_start, amqp_exceptions.NotFound, errback=self.on_error)
         except WorkerTerminate:
             self.terminate()
         except Exception as exc:
