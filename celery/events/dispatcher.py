@@ -147,6 +147,7 @@ class EventDispatcher(object):
 
     def _publish(self, event, producer, routing_key, retry=False,
                  retry_policy=None, utcoffset=utcoffset):
+        logger.info('_PUBLISH: %s', event)
         exchange = self.exchange
         try:
             producer.publish(
@@ -163,6 +164,7 @@ class EventDispatcher(object):
         except Exception as exc:  # pylint: disable=broad-except
             if not self.buffer_while_offline:
                 raise
+            logger.info('APPEND TO _OUTBOUND_BUFFER: %s', event)
             self._outbound_buffer.append((event, routing_key, exc))
 
     def send(self, type, blind=False, utcoffset=utcoffset, retry=False,
