@@ -449,6 +449,7 @@ class Consumer(object):
         return conn
 
     def _flush_events(self):
+        logger.info('CONSUMER.CONSUMER._FLUSH_EVENTS')
         if self.event_dispatcher:
             self.event_dispatcher.flush()
 

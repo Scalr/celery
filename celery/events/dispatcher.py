@@ -18,6 +18,10 @@ from .event import Event, get_exchange, group_from
 
 __all__ = ['EventDispatcher']
 
+from celery.utils.log import get_logger
+
+logger = get_logger(__name__)
+
 
 class EventDispatcher(object):
     """Dispatches event messages.
@@ -200,6 +204,7 @@ class EventDispatcher(object):
 
     def flush(self, errors=True, groups=True):
         """Flush the outbound buffer."""
+        logger.info('EVENTS.DISPATCHER.FLUSH')
         if errors:
             buf = list(self._outbound_buffer)
             try:
