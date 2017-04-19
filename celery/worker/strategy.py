@@ -111,6 +111,7 @@ def default(task, app, consumer,
             return
 
         if task_sends_events:
+            logger.info('SEND_EVENT OBJECT: %s', send_event)
             send_event(
                 'task-received',
                 uuid=req.id, name=req.name,
