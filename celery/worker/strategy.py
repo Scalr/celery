@@ -108,10 +108,12 @@ def default(task, app, consumer,
         if _does_info:
             info('Received task: %s', req)
         if (req.expires or req.id in revoked_tasks) and req.revoked():
+            logger.info('STRATEGY return')
             return
 
+        logger.info('STRATEGY.TASK_SENDS_EVENTS: %s', task_sends_events)
         if task_sends_events:
-            logger.info('SEND_EVENT OBJECT: %s', send_event)
+            logger.info('STRATEGY.SEND_EVENT OBJECT: %s', send_event)
             send_event(
                 'task-received',
                 uuid=req.id, name=req.name,
