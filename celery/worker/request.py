@@ -284,6 +284,7 @@ class Request(object):
         return False
 
     def send_event(self, type, **fields):
+        logger.info('REQUEST.SEND_EVENT: %s', type)
         if self.eventer and self.eventer.enabled and self.task.send_events:
             self.eventer.send(type, uuid=self.id, **fields)
 
