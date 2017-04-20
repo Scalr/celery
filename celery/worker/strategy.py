@@ -72,16 +72,16 @@ def default(task, app, consumer,
     import pprint
     # task event related
     # (optimized to avoid calling request.send_event)
-    info("consumer %s:\n%s\n%s", str(consumer), pprint.pformat(consumer.__dict___), '-' * 80)
+    info("consumer %s:\n%s\n%s", str(consumer), pprint.pformat(consumer.__dict__), '-' * 80)
     eventer = consumer.event_dispatcher
-    info("Eventer %s:\n%s\n%s", str(eventer), pprint.pformat(eventer.__dict___), '-' * 80)
+    info("Eventer %s:\n%s\n%s", str(eventer), pprint.pformat(eventer.__dict__), '-' * 80)
     events = eventer and eventer.enabled
-    info("Events %s:\n%s\n%s", str(events), pprint.pformat(events.__dict___), '-' * 80)
+    info("Events %s:\n%s\n%s", str(events), pprint.pformat(events.__dict__), '-' * 80)
     send_event = eventer and eventer.send
-    info("send_event %s:\n%s\n%s", str(send_event), pprint.pformat(send_event.__dict___), '-' * 80)
+    info("send_event %s:\n%s\n%s", str(send_event), pprint.pformat(send_event.__dict__), '-' * 80)
     task_sends_events = events and task.send_events
     info("task_sends_events %s:\n%s\n%s", str(task_sends_events),
-         pprint.pformat(task_sends_events.__dict___), '-' * 80)
+         pprint.pformat(task_sends_events.__dict__), '-' * 80)
     call_at = consumer.timer.call_at
     apply_eta_task = consumer.apply_eta_task
     rate_limits_enabled = not consumer.disable_rate_limits
