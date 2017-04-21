@@ -3,7 +3,6 @@
 from __future__ import absolute_import, unicode_literals
 
 from collections import deque
-from collections import OrderedDict
 from threading import Event
 
 from kombu.common import ignore_errors
@@ -92,7 +91,7 @@ class Blueprint(object):
     name = None
     state = None
     started = 0
-    default_steps = []
+    default_steps = set()
     state_to_name = {
         0: 'initializing',
         RUN: 'running',
@@ -103,7 +102,7 @@ class Blueprint(object):
     def __init__(self, steps=None, name=None,
                  on_start=None, on_close=None, on_stopped=None):
         self.name = name or self.name or qualname(type(self))
-        self.types = (steps or []) + self.default_steps
+        self.types = set(steps or []) | set(self.default_steps)
         self.on_start = on_start
         self.on_close = on_close
         self.on_stopped = on_stopped
@@ -253,7 +252,7 @@ class Blueprint(object):
             raise KeyError('unknown bootstep: %s' % exc)
 
     def claim_steps(self):
-        return OrderedDict(self.load_step(step) for step in self.types)
+        return dict(self.load_step(step) for step in self.types)
 
     def load_step(self, step):
         step = symbol_by_name(step)
