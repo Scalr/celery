@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from kombu.common import QoS, ignore_errors
 from celery import bootsteps
 from celery.utils.log import get_logger
-from .connection import Connection
+from .mingle import Mingle
 
 __all__ = ['Tasks']
 logger = get_logger(__name__)
@@ -13,7 +13,7 @@ debug = logger.debug
 class Tasks(bootsteps.StartStopStep):
     """Bootstep starting the task message consumer."""
 
-    requires = (Connection,)
+    requires = (Mingle,)
 
     def __init__(self, c, **kwargs):
         c.task_consumer = c.qos = None
