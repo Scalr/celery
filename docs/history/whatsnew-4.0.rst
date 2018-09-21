@@ -51,7 +51,7 @@ Not only does it come with many new features, but it also fixes
 a massive list of bugs, so in many ways you could call it
 our "Snow Leopard" release.
 
-The next major version of Celery will support Python 3.5 only, were
+The next major version of Celery will support Python 3.5 only, where
 we are planning to take advantage of the new asyncio library.
 
 This release would not have been possible without the support
@@ -65,7 +65,7 @@ all the contributors who help make this happen, and my colleagues
 at `Robinhood`_.
 
 .. _`Ty Wilkins`: http://tywilkins.com
-.. _`Robinhood`: http://robinhood.com
+.. _`Robinhood`: https://robinhood.com
 
 Wall of Contributors
 --------------------
@@ -387,6 +387,7 @@ This command will modify your module in-place to use the new lower-case
 names (if you want uppercase with a "``CELERY``" prefix see block below),
 and save a backup in :file:`proj/settings.py.orig`.
 
+.. _latentcall-django-admonition:
 .. admonition:: For Django users and others who want to keep uppercase names
 
     If you're loading Celery configuration from the Django settings module
@@ -551,7 +552,7 @@ these manually:
     class CustomTask(Task):
         def run(self):
             print('running')
-    app.register_task(CustomTask())
+    CustomTask = app.register_task(CustomTask())
 
 The best practice is to use custom task classes only for overriding
 general behavior, and then using the task decorator to realize the task:
@@ -786,7 +787,7 @@ some long-requested features:
 
     Dividing the responsibilities into creating and sending means that
     people who want to send messages using a Python AMQP client directly,
-    doesn't have to implement the protocol.
+    don't have to implement the protocol.
 
     The :meth:`@amqp.create_task_message` method calls either
     :meth:`@amqp.as_task_v2`, or :meth:`@amqp.as_task_v1` depending
@@ -1056,7 +1057,7 @@ Contributed by **Ionel Cristian Mărieș**.
 Handling task connection errors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Connection related errors occuring while sending a task is now re-raised
+Connection related errors occurring while sending a task is now re-raised
 as a :exc:`kombu.exceptions.OperationalError` error:
 
 .. code-block:: pycon
@@ -1347,7 +1348,7 @@ This allows Celery to store Task results in the K/V store of Consul.
 Consul also allows to set a TTL on keys using the Sessions from Consul. This way
 the backend supports auto expiry of Task results.
 
-For more information on Consul visit http://consul.io/
+For more information on Consul visit https://consul.io/
 
 The backend uses :pypi:`python-consul` for talking to the HTTP API.
 This package is fully Python 3 compliant just as this backend is:
