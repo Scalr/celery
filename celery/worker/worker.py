@@ -17,6 +17,8 @@ from __future__ import absolute_import, unicode_literals
 import os
 import sys
 
+import functools
+
 from amqp import exceptions as amqp_exceptions
 from billiard import cpu_count
 from kombu.utils import retry_over_time
