@@ -16,12 +16,8 @@ from __future__ import absolute_import, unicode_literals
 
 import os
 import sys
-import functools
 
-try:
-    import resource
-except ImportError:  # pragma: no cover
-    resource = None  # noqa
+import functools
 
 from amqp import exceptions as amqp_exceptions
 from billiard import cpu_count
@@ -29,16 +25,16 @@ from kombu.utils import retry_over_time
 from kombu.utils.compat import detect_environment
 
 from celery import bootsteps
-from celery.bootsteps import RUN, TERMINATE
 from celery import concurrency as _concurrency
 from celery import signals
-from celery.exceptions import (
-    ImproperlyConfigured, WorkerTerminate, TaskRevokedError,
-)
+from celery.bootsteps import RUN, TERMINATE
+from celery.exceptions import (ImproperlyConfigured, TaskRevokedError,
+                               WorkerTerminate)
 from celery.five import python_2_unicode_compatible, values
 from celery.platforms import EX_FAILURE, create_pidlock
 from celery.utils.imports import reload_from_cwd
-from celery.utils.log import mlevel, worker_logger as logger
+from celery.utils.log import mlevel
+from celery.utils.log import worker_logger as logger
 from celery.utils.nodenames import default_nodename, worker_direct
 from celery.utils.text import str_to_list
 from celery.utils.time import humanize_seconds
@@ -46,7 +42,13 @@ from celery.utils.threads import default_socket_timeout
 
 from . import state
 
-__all__ = ['WorkController']
+try:
+    import resource
+except ImportError:  # pragma: no cover
+    resource = None  # noqa
+
+
+__all__ = ('WorkController',)
 
 #: Default socket timeout at shutdown.
 SHUTDOWN_SOCKET_TIMEOUT = 5.0
@@ -251,7 +253,7 @@ class WorkController(object):
 
     def should_use_eventloop(self):
         return (detect_environment() == 'default' and
-                self._conninfo.transport.implements.async and
+                self._conninfo.transport.implements.asynchronous and
                 not self.app.IS_WINDOWS)
 
     def stop(self, in_sighandler=False, exitcode=None):
