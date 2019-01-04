@@ -12,8 +12,12 @@ import socket
 from celery.bootsteps import RUN
 from celery.exceptions import WorkerShutdown, WorkerTerminate, WorkerLostError
 from celery.utils.log import get_logger
+from celery.utils.timeutils import humanize_seconds
 
 from . import state
+
+import amqp.exceptions
+from kombu.utils import retry_over_time
 
 __all__ = ['asynloop', 'synloop']
 
@@ -36,7 +40,17 @@ def asynloop(obj, connection, consumer, blueprint, hub, qos,
         hub.call_repeatedly(heartbeat / hbrate, hbtick, hbrate)
 
     consumer.callbacks = [on_task_received]
-    consumer.consume()
+
+    # [FAM-348]
+    def on_error(exc, intervals, _):
+        consumer.cancel()
+
+        consume_error = "Task queue is not available: %s\nTrying to consume again %s..."
+        interval = next(intervals)
+        error(consume_error, exc, humanize_seconds(interval, 'in', ' '))
+        return interval
+
+    retry_over_time(consumer.consume, amqp.exceptions.NotFound, errback=on_error)
     obj.on_ready()
     obj.controller.register_with_event_loop(hub)
     obj.register_with_event_loop(hub)
@@ -90,6 +104,7 @@ def synloop(obj, connection, consumer, blueprint, hub, qos,
     """Fallback blocking event loop for transports that doesn't support AIO."""
 
     on_task_received = obj.create_task_handler()
+    perform_pending_operations = obj.perform_pending_operations
     consumer.register_callback(on_task_received)
     consumer.consume()
 
@@ -100,6 +115,7 @@ def synloop(obj, connection, consumer, blueprint, hub, qos,
         if qos.prev != qos.value:
             qos.update()
         try:
+            perform_pending_operations()
             connection.drain_events(timeout=2.0)
         except socket.timeout:
             pass

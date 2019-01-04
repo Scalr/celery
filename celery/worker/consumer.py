@@ -22,6 +22,7 @@ from heapq import heappush
 from operator import itemgetter
 from time import sleep
 
+from vine import ppartial, promise
 from billiard.common import restart_state
 from billiard.exceptions import RestartFreqExceeded
 from kombu.async.semaphore import DummyLock
@@ -30,6 +31,7 @@ from kombu.syn import _detect_environment
 from kombu.utils.compat import get_errno
 from kombu.utils.encoding import safe_repr, bytes_t
 from kombu.utils.limits import TokenBucket
+import amqp.exceptions
 
 from celery import chain
 from celery import bootsteps
@@ -156,12 +158,11 @@ class Consumer(object):
 
     class Blueprint(bootsteps.Blueprint):
         name = 'Consumer'
+        # [FAM-328] We remove Events, Gossip, Heartbeat and Mingle from default
+        # steps because they are not used by us but interfere with amqp
+        # heartbeats we need.
         default_steps = [
             'celery.worker.consumer:Connection',
-            'celery.worker.consumer:Mingle',
-            'celery.worker.consumer:Events',
-            'celery.worker.consumer:Gossip',
-            'celery.worker.consumer:Heart',
             'celery.worker.consumer:Control',
             'celery.worker.consumer:Tasks',
             'celery.worker.consumer:Evloop',
@@ -203,8 +204,10 @@ class Consumer(object):
         self.task_buckets = defaultdict(lambda: None)
         self.reset_rate_limits()
 
+        self.gevent_env = _detect_environment() == 'gevent'
+
         self.hub = hub
-        if self.hub:
+        if self.gevent_env:
             self.amqheartbeat = amqheartbeat
             if self.amqheartbeat is None:
                 self.amqheartbeat = self.app.conf.BROKER_HEARTBEAT
@@ -220,11 +223,28 @@ class Consumer(object):
             # connect again.
             self.app.conf.BROKER_CONNECTION_TIMEOUT = None
 
+        self._pending_operations = []
+
         self.steps = []
         self.blueprint = self.Blueprint(
             app=self.app, on_close=self.on_close,
         )
         self.blueprint.apply(self, **dict(worker_options or {}, **kwargs))
+
+    def call_soon(self, p, *args, **kwargs):
+        p = ppartial(p, *args, **kwargs)
+        if self.hub:
+            return self.hub.call_soon(p)
+        self._pending_operations.append(p)
+        return p
+
+    def perform_pending_operations(self):
+        if not self.hub:
+            while self._pending_operations:
+                try:
+                    self._pending_operations.pop()()
+                except Exception as exc:
+                    error('Pending callback raised: %r', exc, exc_info=1)
 
     def bucket_for_task(self, type):
         limit = rate(getattr(type, 'rate_limit', None))
@@ -288,7 +308,9 @@ class Consumer(object):
                     crit('Frequent restarts detected: %r', exc, exc_info=1)
                     sleep(1)
                 if blueprint.state != CLOSE and self.connection:
-                    warn(CONNECTION_RETRY, exc_info=True)
+                    # [FAM-254]
+                    needs_exc_info = not isinstance(exc, amqp.exceptions.ConnectionForced)
+                    warn(CONNECTION_RETRY, exc_info=needs_exc_info)
                     try:
                         self.connection.collect()
                     except Exception:
@@ -378,6 +400,13 @@ class Consumer(object):
         )
         if self.hub:
             conn.transport.register_with_event_loop(conn.connection, self.hub)
+
+        # Install timer to send heartbeats on gevent
+        if self.gevent_env and self.amqheartbeat:
+            hbtick = conn.heartbeat_check
+            logger.debug('Registring heartbeat timer for connection: {}'.format(id(conn)))
+            self.timer.call_repeatedly(int(self.amqheartbeat / self.amqheartbeat_rate), hbtick, (self.amqheartbeat_rate,))
+
         return conn
 
     def add_task_queue(self, queue, exchange=None, exchange_type=None,
@@ -440,12 +469,13 @@ class Consumer(object):
             task.__trace__ = build_tracer(name, task, loader, self.hostname,
                                           app=self.app)
 
-    def create_task_handler(self):
+    def create_task_handler(self, promise=promise):
         strategies = self.strategies
         on_unknown_message = self.on_unknown_message
         on_unknown_task = self.on_unknown_task
         on_invalid_task = self.on_invalid_task
         callbacks = self.on_task_message
+        call_soon = self.call_soon
 
         def on_task_received(body, message):
             headers = message.headers
@@ -463,8 +493,8 @@ class Consumer(object):
 
             try:
                 strategies[type_](message, body,
-                                  message.ack_log_error,
-                                  message.reject_log_error,
+                                  promise(call_soon, (message.ack_log_error,)),
+                                  promise(call_soon, (message.reject_log_error,)),
                                   callbacks)
             except KeyError as exc:
                 on_unknown_task(body, message, exc)
@@ -633,7 +663,7 @@ class Mingle(bootsteps.StartStopStep):
 
 
 class Tasks(bootsteps.StartStopStep):
-    requires = (Mingle, )
+    requires = (Connection, )
 
     def __init__(self, c, **kwargs):
         c.task_consumer = c.qos = None
