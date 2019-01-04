@@ -408,6 +408,7 @@ class Consumer(object):
         conn = self.connection_for_read(heartbeat=self.amqheartbeat)
         if self.hub:
             conn.transport.register_with_event_loop(conn.connection, self.hub)
+        # Install timer to send heartbeats on gevent
         if self.gevent_env and self.amqheartbeat:
             hbtick = conn.heartbeat_check
             logger.debug('Registering heartbeat timer for connection: {}'.format(id(conn)))
