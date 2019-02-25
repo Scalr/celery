@@ -5,6 +5,7 @@ from __future__ import absolute_import, unicode_literals
 import os
 import threading
 import warnings
+import types
 from collections import defaultdict, deque
 from datetime import datetime
 from operator import attrgetter
@@ -1024,6 +1025,11 @@ class Celery(object):
                 implementation won't be provided.
         """
         Class = symbol_by_name(Class)
+
+        # Add possibility to add function factory for subclass initialization
+        if isinstance(Class, types.FunctionType):
+            Class = Class()
+
         reverse = reverse if reverse else Class.__name__
 
         def __reduce__(self):
