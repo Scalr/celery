@@ -230,8 +230,7 @@ class test_Consumer:
         return se
 
     def test_collects_at_restart(self):
-        conn_mock = self.app.connection = Mock()
-        conn_mock.default_connection = None
+        self.app.backend = None
         c = self.get_consumer()
         c.connection.collect.side_effect = MemoryError()
         c.blueprint.start.side_effect = socket.error()
