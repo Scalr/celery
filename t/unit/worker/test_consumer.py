@@ -292,7 +292,6 @@ class test_Heart:
 
         with patch('celery.worker.heartbeat.Heart') as hcls:
             h = Heart(c, False, 20)
-            h.blueprint.app.backend = None
             assert h.enabled
             assert h.heartbeat_interval == 20
             assert c.heart is None
