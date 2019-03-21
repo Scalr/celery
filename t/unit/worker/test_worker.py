@@ -286,7 +286,7 @@ class test_Consumer(ConsumerCase):
             c.timer and c.timer.stop()
 
     def test_start_connection_error(self):
-        self.app.backend.result_consumer.revive = Mock()
+        self.app.backend.result_consumer = Mock()
         c = self.NoopConsumer(task_events=False, pool=BasePool())
         c.loop.on_nth_call_do_raise(KeyError('foo'), SyntaxError('bar'))
         c.connection_errors = (KeyError,)
