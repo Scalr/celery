@@ -288,7 +288,7 @@ class test_Consumer(ConsumerCase):
     def test_start_connection_error(self):
         conn_mock = self.app.connection = Mock()
         conn_mock.default_channel = None
-        self.app.backend.result_consumer = Mock()
+        self.app.backend.revive = Mock()
         c = self.NoopConsumer(task_events=False, pool=BasePool())
         c.loop.on_nth_call_do_raise(KeyError('foo'), SyntaxError('bar'))
         c.connection_errors = (KeyError,)
