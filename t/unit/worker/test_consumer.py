@@ -230,6 +230,7 @@ class test_Consumer:
         return se
 
     def test_collects_at_restart(self):
+        self.app.backend = None
         c = self.get_consumer()
         c.connection.collect.side_effect = MemoryError()
         c.blueprint.start.side_effect = socket.error()
