@@ -257,10 +257,19 @@ class Backend(object):
                         cls = create_exception_cls(exc_type,
                                                    celery.exceptions.__name__)
                 exc_msg = exc['exc_message']
-                if isinstance(exc_msg, tuple):
-                    exc = cls(*exc_msg)
-                else:
-                    exc = cls(exc_msg)
+                try:
+                    if isinstance(exc_msg, tuple):
+                        exc = cls(*exc_msg)
+                    else:
+                        exc = cls(exc_msg)
+                except Exception as err:
+                    # Exception creation might cause failure iself. 
+                    # The most common case is when a custom exception violates the contract 
+                    # Exception.args <=> Exception.__init__(*args) 
+                    # To gracefully handle custom __init__,  
+                    # Backend.prepare_exception() should be extended in subclass 
+                    # with serialization code for every custom __init__.
+                    return err
             if self.serializer in EXCEPTION_ABLE_CODECS:
                 exc = get_pickled_exception(exc)
         return exc
