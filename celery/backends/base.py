@@ -257,7 +257,10 @@ class Backend(object):
                         cls = create_exception_cls(exc_type,
                                                    celery.exceptions.__name__)
                 exc_msg = exc['exc_message']
-                exc = cls(*exc_msg if isinstance(exc_msg, tuple) else exc_msg)
+                if isinstance(exc_msg, tuple):
+                    exc = cls(*exc_msg)
+                else:
+                    exc = cls(exc_msg)
             if self.serializer in EXCEPTION_ABLE_CODECS:
                 exc = get_pickled_exception(exc)
         return exc
