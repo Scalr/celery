@@ -16,6 +16,7 @@ from time import sleep
 from billiard.common import restart_state
 from billiard.exceptions import RestartFreqExceeded
 from kombu.asynchronous.semaphore import DummyLock
+from kombu.exceptions import ContentDisallowed, DecodeError
 from kombu.utils.compat import _detect_environment
 from kombu.utils.encoding import bytes_t, safe_repr
 from kombu.utils.limits import TokenBucket
@@ -51,7 +52,7 @@ Trying to re-establish the connection...\
 """
 
 CONNECTION_RETRY_STEP = """\
-Trying again {when}...\
+Trying again {when}... ({retries}/{max_retries})\
 """
 
 CONNECTION_ERROR = """\
@@ -269,7 +270,7 @@ class Consumer(object):
     def _update_qos_eventually(self, index):
         return (self.qos.decrement_eventually if index < 0
                 else self.qos.increment_eventually)(
-            abs(index) * self.prefetch_multiplier)
+                    abs(index) * self.prefetch_multiplier)
 
     def _limit_move_to_pool(self, request):
         task_reserved(request)
@@ -440,8 +441,11 @@ class Consumer(object):
         def _error_handler(exc, interval, next_step=CONNECTION_RETRY_STEP):
             if getattr(conn, 'alt', None) and interval == 0:
                 next_step = CONNECTION_FAILOVER
-            error(CONNECTION_ERROR, conn.as_uri(), exc,
-                  next_step.format(when=humanize_seconds(interval, 'in', ' ')))
+            next_step = next_step.format(
+                when=humanize_seconds(interval, 'in', ' '),
+                retries=int(interval / 2),
+                max_retries=self.app.conf.broker_connection_max_retries)
+            error(CONNECTION_ERROR, conn.as_uri(), exc, next_step)
 
         # remember that the connection is lazy, it won't establish
         # until needed.
@@ -586,8 +590,10 @@ class Consumer(object):
                         promise(call_soon, (message.reject_log_error,)),
                         callbacks,
                     )
-                except InvalidTaskError as exc:
+                except (InvalidTaskError, ContentDisallowed) as exc:
                     return on_invalid_task(payload, message, exc)
+                except DecodeError as exc:
+                    return self.on_decode_error(message, exc)
 
         return on_task_received
 

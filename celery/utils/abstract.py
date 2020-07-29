@@ -3,9 +3,15 @@
 from __future__ import absolute_import, unicode_literals
 
 from abc import ABCMeta, abstractmethod, abstractproperty
-from collections import Callable
 
 from celery.five import with_metaclass
+
+try:
+    from collections.abc import Callable
+except ImportError:
+    # TODO: Remove this when we drop Python 2.7 support
+    from collections import Callable
+
 
 __all__ = ('CallableTask', 'CallableSignature')
 
@@ -112,7 +118,8 @@ class CallableSignature(CallableTask):  # pragma: no cover
         pass
 
     @abstractmethod
-    def freeze(self, id=None, group_id=None, chord=None, root_id=None):
+    def freeze(self, id=None, group_id=None, chord=None, root_id=None,
+               group_index=None):
         pass
 
     @abstractmethod

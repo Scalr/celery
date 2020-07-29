@@ -30,8 +30,8 @@ def _maybe_close_fd(fh):
 
 
 def _verify_django_version(django):
-    if django.VERSION < (1, 8):
-        raise ImproperlyConfigured('Celery 4.x requires Django 1.8 or later.')
+    if django.VERSION < (1, 11):
+        raise ImproperlyConfigured('Celery 4.x requires Django 1.11 or later.')
 
 
 def fixup(app, env='DJANGO_SETTINGS_MODULE'):
@@ -57,8 +57,10 @@ class DjangoFixup(object):
         self._worker_fixup = None
 
     def install(self):
-        # Need to add project directory to path
-        sys.path.append(os.getcwd())
+        # Need to add project directory to path.
+        # The project directory has precedence over system modules,
+        # so we prepend it to the path.
+        sys.path.insert(0, os.getcwd())
 
         self._settings = symbol_by_name('django.conf:settings')
         self.app.loader.now = self.now
@@ -149,7 +151,7 @@ class DjangoWorkerFixup(object):
                 self._maybe_close_db_fd(c.connection)
 
         # use the _ version to avoid DB_REUSE preventing the conn.close() call
-        self._close_database()
+        self._close_database(force=True)
         self.close_cache()
 
     def _maybe_close_db_fd(self, fd):
@@ -178,10 +180,13 @@ class DjangoWorkerFixup(object):
             self._close_database()
         self._db_recycles += 1
 
-    def _close_database(self):
+    def _close_database(self, force=False):
         for conn in self._db.connections.all():
             try:
-                conn.close_if_unusable_or_obsolete()
+                if force:
+                    conn.close()
+                else:
+                    conn.close_if_unusable_or_obsolete()
             except self.interface_errors:
                 pass
             except self.DatabaseError as exc:
@@ -197,5 +202,5 @@ class DjangoWorkerFixup(object):
 
     def on_worker_ready(self, **kwargs):
         if self._settings.DEBUG:
-            warnings.warn('Using settings.DEBUG leads to a memory leak, never '
-                          'use this setting in production environments!')
+            warnings.warn('''Using settings.DEBUG leads to a memory
+            leak, never use this setting in production environments!''')

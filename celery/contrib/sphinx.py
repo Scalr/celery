@@ -7,6 +7,8 @@ Introduction
 Usage
 -----
 
+The Celery extension for Sphinx requires Sphinx 2.0 or later.
+
 Add the extension to your :file:`docs/conf.py` configuration module:
 
 .. code-block:: python
@@ -31,11 +33,10 @@ Use ``.. autotask::`` to alternatively manually document a task.
 """
 from __future__ import absolute_import, unicode_literals
 
-from sphinx.domains.python import PyModulelevel
+from sphinx.domains.python import PyFunction
 from sphinx.ext.autodoc import FunctionDocumenter
 
 from celery.app.task import BaseTask
-from celery.local import PromiseProxy
 
 try:  # pragma: no cover
     from inspect import formatargspec, getfullargspec
@@ -72,15 +73,13 @@ class TaskDocumenter(FunctionDocumenter):
         # given by *self.modname*. But since functions decorated with the @task
         # decorator are instances living in the celery.local, we have to check
         # the wrapped function instead.
-        modname = self.get_attr(self.object, '__module__', None)
-        if modname and modname == 'celery.local':
-            wrapped = getattr(self.object, '__wrapped__', None)
-            if wrapped and getattr(wrapped, '__module__') == self.modname:
-                return True
+        wrapped = getattr(self.object, '__wrapped__', None)
+        if wrapped and getattr(wrapped, '__module__') == self.modname:
+            return True
         return super(TaskDocumenter, self).check_module()
 
 
-class TaskDirective(PyModulelevel):
+class TaskDirective(PyFunction):
     """Sphinx task directive."""
 
     def get_signature_prefix(self, sig):
@@ -95,7 +94,7 @@ def autodoc_skip_member_handler(app, what, name, obj, skip, options):
     # suppress repetition of class documentation in an instance of the
     # class. This overrides that behavior.
     if isinstance(obj, BaseTask) and getattr(obj, '__wrapped__'):
-        if skip and isinstance(obj, PromiseProxy):
+        if skip:
             return False
     return None
 
