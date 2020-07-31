@@ -340,7 +340,7 @@ class Consumer(object):
                     # SCALRCORE-11936 Callback to revive RPC backend consumer
                     if self.app.backend:
                         info('Reviving backend consumer...')
-                        channel = self.conninfo.default_channel
+                        channel = self.app.connection.default_channel
                         self.app.backend.revive(channel)
 
     def on_connection_error_before_connected(self, exc):
