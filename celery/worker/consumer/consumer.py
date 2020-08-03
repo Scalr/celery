@@ -145,9 +145,6 @@ class Consumer(object):
         """Consumer blueprint."""
 
         name = 'Consumer'
-        # [FAM-328] We remove Events, Gossip, Heartbeat and Mingle from default
-        # steps because they are not used by us but interfere with amqp
-        # heartbeats we need.
         default_steps = [
             'celery.worker.consumer.connection:Connection',
             'celery.worker.consumer.mingle:Mingle',
