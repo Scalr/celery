@@ -60,7 +60,7 @@ def it(_, n):
     elif i > n - 2:
         total = tdiff(it.time_start)
         print('({0} so far: {1}s)'.format(i, tdiff(it.subt)), file=sys.stderr)
-        print('-- process {0} tasks: {1}s total, {2} tasks/s} '.format(
+        print('-- process {0} tasks: {1}s total, {2} tasks/s'.format(
             n, total, n / (total + .0),
         ))
         import os
@@ -104,15 +104,12 @@ def main(argv=sys.argv):
         ))
         return sys.exit(1)
     try:
-        try:
-            n = int(argv[2])
-        except IndexError:
-            pass
-        return {'apply': bench_apply,
-                'work': bench_work,
-                'both': bench_both}[argv[1]](n=n)
-    except:
-        raise
+        n = int(argv[2])
+    except IndexError:
+        pass
+    return {'apply': bench_apply,
+            'work': bench_work,
+            'both': bench_both}[argv[1]](n=n)
 
 
 if __name__ == '__main__':

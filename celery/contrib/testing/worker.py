@@ -53,16 +53,17 @@ class TestWorkController(worker.WorkController):
 
 
 @contextmanager
-def start_worker(app,
-                 concurrency=1,
-                 pool='solo',
-                 loglevel=WORKER_LOGLEVEL,
-                 logfile=None,
-                 perform_ping_check=True,
-                 ping_task_timeout=10.0,
-                 **kwargs):
-    # type: (Celery, int, str, Union[str, int],
-    #        str, bool, float, **Any) -> # Iterable
+def start_worker(
+    app,  # type: Celery
+    concurrency=1,  # type: int
+    pool='solo',  # type: str
+    loglevel=WORKER_LOGLEVEL,  # type: Union[str, int]
+    logfile=None,  # type: str
+    perform_ping_check=True,  # type: bool
+    ping_task_timeout=10.0,  # type: float
+    **kwargs  # type: Any
+):
+    # type: (...) -> Iterable
     """Start embedded worker.
 
     Yields:
@@ -75,6 +76,7 @@ def start_worker(app,
                               pool=pool,
                               loglevel=loglevel,
                               logfile=logfile,
+                              perform_ping_check=perform_ping_check,
                               **kwargs) as worker:
         if perform_ping_check:
             from .tasks import ping
@@ -92,6 +94,7 @@ def _start_worker_thread(app,
                          loglevel=WORKER_LOGLEVEL,
                          logfile=None,
                          WorkController=TestWorkController,
+                         perform_ping_check=True,
                          **kwargs):
     # type: (Celery, int, str, Union[str, int], str, Any, **Any) -> Iterable
     """Start Celery worker in a thread.
@@ -100,7 +103,8 @@ def _start_worker_thread(app,
         celery.worker.Worker: worker instance.
     """
     setup_app_for_worker(app, loglevel, logfile)
-    assert 'celery.ping' in app.tasks
+    if perform_ping_check:
+        assert 'celery.ping' in app.tasks
     # Make sure we can connect to the broker
     with app.connection(hostname=os.environ.get('TEST_BROKER')) as conn:
         conn.default_channel.queue_declare

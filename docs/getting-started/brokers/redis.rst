@@ -100,46 +100,6 @@ If you are using Sentinel, you should specify the master_name using the :setting
 Caveats
 =======
 
-.. _redis-caveat-fanout-prefix:
-
-Fanout prefix
--------------
-
-Broadcast messages will be seen by all virtual hosts by default.
-
-You have to set a transport option to prefix the messages so that
-they will only be received by the active virtual host:
-
-.. code-block:: python
-
-    app.conf.broker_transport_options = {'fanout_prefix': True}
-
-Note that you won't be able to communicate with workers running older
-versions or workers that doesn't have this setting enabled.
-
-This setting will be the default in the future, so better to migrate
-sooner rather than later.
-
-.. _redis-caveat-fanout-patterns:
-
-Fanout patterns
----------------
-
-Workers will receive all task related events by default.
-
-To avoid this you must set the ``fanout_patterns`` fanout option so that
-the workers may only subscribe to worker related events:
-
-.. code-block:: python
-
-    app.conf.broker_transport_options = {'fanout_patterns': True}
-
-Note that this change is backward incompatible so all workers in the
-cluster must have this option enabled, or else they won't be able to
-communicate.
-
-This option will be enabled by default in the future.
-
 Visibility timeout
 ------------------
 
@@ -184,3 +144,24 @@ If you experience an error like:
 
 then you may want to configure the :command:`redis-server` to not evict keys
 by setting the ``timeout`` parameter to 0 in the redis configuration file.
+
+Group result ordering
+---------------------
+
+Versions of Celery up to and including 4.4.6 used an unsorted list to store
+result objects for groups in the Redis backend. This can cause those results to
+be be returned in a different order to their associated tasks in the original
+group instantiation.
+
+Celery 4.4.7 and up introduce an opt-in behaviour which fixes this issue and
+ensures that group results are returned in the same order the tasks were
+defined, matching the behaviour of other backends. This change is incompatible
+with workers running versions of Celery without this feature, so the feature
+must be turned on using the boolean `result_chord_ordered` option of the
+:setting:`result_backend_transport_options` setting, like so:
+
+.. code-block:: python
+
+    app.conf.result_backend_transport_options = {
+        'result_chord_ordered': True
+    }

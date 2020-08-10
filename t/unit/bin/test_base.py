@@ -236,6 +236,8 @@ class test_Command:
         assert cmd.find_app('t.unit.bin.proj.hello')
         assert cmd.find_app('t.unit.bin.proj.app:app')
         assert cmd.find_app('t.unit.bin.proj.app.app')
+        with pytest.raises(AttributeError, match='is the celery module'):
+            cmd.find_app('t.unit.bin.proj.app2')
         with pytest.raises(AttributeError):
             cmd.find_app('t.unit.bin')
 
@@ -351,7 +353,7 @@ class test_Command:
             def add_preload_arguments(self, parser):
                 parser.add_argument('-s', action='store', dest='silent')
         cmd = TestCommand()
-        acc = cmd.parse_preload_options(['-s', 'yes'])
+        acc, _ = cmd.parse_preload_options(['-s', 'yes'])
         assert acc.get('silent') == 'yes'
 
     def test_parse_preload_options_with_equals_and_append(self):
@@ -361,7 +363,7 @@ class test_Command:
             def add_preload_arguments(self, parser):
                 parser.add_argument('--zoom', action='append', default=[])
         cmd = Command()
-        acc = cmd.parse_preload_options(['--zoom=1', '--zoom=2'])
+        acc, _ = cmd.parse_preload_options(['--zoom=1', '--zoom=2'])
 
         assert acc, {'zoom': ['1' == '2']}
 
@@ -369,6 +371,6 @@ class test_Command:
         cmd = Command()
         opt = Option('--zoom', action='append', default=[])
         cmd.preload_options = (opt,)
-        acc = cmd.parse_preload_options(['--zoom', '1', '--zoom', '2'])
+        acc, _ = cmd.parse_preload_options(['--zoom', '1', '--zoom', '2'])
 
         assert acc, {'zoom': ['1' == '2']}

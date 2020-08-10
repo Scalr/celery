@@ -16,6 +16,7 @@ from time import sleep
 from billiard.common import restart_state
 from billiard.exceptions import RestartFreqExceeded
 from kombu.asynchronous.semaphore import DummyLock
+from kombu.exceptions import ContentDisallowed, DecodeError
 from kombu.utils.compat import _detect_environment
 from kombu.utils.encoding import bytes_t, safe_repr
 from kombu.utils.limits import TokenBucket
@@ -51,7 +52,7 @@ Trying to re-establish the connection...\
 """
 
 CONNECTION_RETRY_STEP = """\
-Trying again {when}...\
+Trying again {when}... ({retries}/{max_retries})\
 """
 
 CONNECTION_ERROR = """\
@@ -144,9 +145,6 @@ class Consumer(object):
         """Consumer blueprint."""
 
         name = 'Consumer'
-        # [FAM-328] We remove Events, Gossip, Heartbeat and Mingle from default
-        # steps because they are not used by us but interfere with amqp
-        # heartbeats we need.
         default_steps = [
             'celery.worker.consumer.connection:Connection',
             'celery.worker.consumer.mingle:Mingle',
@@ -269,7 +267,7 @@ class Consumer(object):
     def _update_qos_eventually(self, index):
         return (self.qos.decrement_eventually if index < 0
                 else self.qos.increment_eventually)(
-            abs(index) * self.prefetch_multiplier)
+                    abs(index) * self.prefetch_multiplier)
 
     def _limit_move_to_pool(self, request):
         task_reserved(request)
@@ -336,11 +334,6 @@ class Consumer(object):
                         self.on_connection_error_before_connected(exc)
                     self.on_close()
                     blueprint.restart(self)
-                    # SCALRCORE-11936 Callback to revive RPC backend consumer
-                    if self.app.backend:
-                        info('Reviving backend consumer...')
-                        channel = self.conninfo.default_channel
-                        self.app.backend.revive(channel)
 
     def on_connection_error_before_connected(self, exc):
         error(CONNECTION_ERROR, self.conninfo.as_uri(), exc,
@@ -440,8 +433,11 @@ class Consumer(object):
         def _error_handler(exc, interval, next_step=CONNECTION_RETRY_STEP):
             if getattr(conn, 'alt', None) and interval == 0:
                 next_step = CONNECTION_FAILOVER
-            error(CONNECTION_ERROR, conn.as_uri(), exc,
-                  next_step.format(when=humanize_seconds(interval, 'in', ' ')))
+            next_step = next_step.format(
+                when=humanize_seconds(interval, 'in', ' '),
+                retries=int(interval / 2),
+                max_retries=self.app.conf.broker_connection_max_retries)
+            error(CONNECTION_ERROR, conn.as_uri(), exc, next_step)
 
         # remember that the connection is lazy, it won't establish
         # until needed.
@@ -586,8 +582,10 @@ class Consumer(object):
                         promise(call_soon, (message.reject_log_error,)),
                         callbacks,
                     )
-                except InvalidTaskError as exc:
+                except (InvalidTaskError, ContentDisallowed) as exc:
                     return on_invalid_task(payload, message, exc)
+                except DecodeError as exc:
+                    return self.on_decode_error(message, exc)
 
         return on_task_received
 
