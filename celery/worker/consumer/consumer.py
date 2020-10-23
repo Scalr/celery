@@ -250,6 +250,9 @@ class Consumer:
             while self._pending_operations:
                 try:
                     self._pending_operations.pop()()
+                except BrokenPipeError:
+                    # re-raise this error to allow a consumer to reconnect
+                    raise
                 except Exception as exc:  # pylint: disable=broad-except
                     logger.exception('Pending callback raised: %r', exc)
 
