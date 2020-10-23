@@ -2,6 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import errno
 import socket
+from unittest import mock
 
 import pytest
 from case import Mock
@@ -162,8 +163,10 @@ class test_asynloop:
         x.consumer.consume.assert_called_with()
         x.obj.on_ready.assert_called_with()
         x.hub.timer.call_repeatedly.assert_called_with(
-            10 / 2.0, x.connection.heartbeat_check, (2.0,),
+            10 / 2.0, mock.ANY, (2.0,),
         )
+        x.hub.timer.call_repeatedly.call_args[0][1]("rate")
+        x.connection.heartbeat_check.assert_called_with("rate")
 
     def task_context(self, sig, **kwargs):
         x, on_task = get_task_callback(self.app, **kwargs)
@@ -461,6 +464,14 @@ class test_synloop:
         x = X(self.app)
         x.close_then_error(x.connection.drain_events)
         assert synloop(*x.args) is None
+
+    def test_close_on_broken_pipe(self):
+        x = X(self.app)
+        x.connection.drain_events.side_effect = BrokenPipeError
+
+        with pytest.raises(BrokenPipeError):
+            synloop(*x.args)
+        x.connection.close.assert_called_with()
 
 
 class test_quick_drain:
