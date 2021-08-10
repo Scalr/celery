@@ -1,6 +1,4 @@
 """The consumers highly-optimized inner loop."""
-from __future__ import absolute_import, unicode_literals
-
 import errno
 import socket
 
@@ -152,6 +150,6 @@ def synloop(obj, connection, consumer, blueprint, hub, qos,
             raise
         except socket.timeout:
             pass
-        except socket.error:
+        except OSError:
             if blueprint.state == RUN:
                 raise

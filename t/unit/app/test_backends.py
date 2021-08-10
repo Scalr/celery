@@ -1,10 +1,9 @@
-from __future__ import absolute_import, unicode_literals
+from unittest.mock import patch
 
 import pytest
 from case import patch, skip
 
 from celery.app import backends
-from celery.backends.amqp import AMQPBackend
 from celery.backends.cache import CacheBackend
 from celery.exceptions import ImproperlyConfigured
 
@@ -12,7 +11,6 @@ from celery.exceptions import ImproperlyConfigured
 class test_backends:
 
     @pytest.mark.parametrize('url,expect_cls', [
-        ('amqp://', AMQPBackend),
         ('cache+memory://', CacheBackend),
     ])
     @skip.skip("We use RPC")
