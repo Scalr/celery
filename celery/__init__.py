@@ -113,16 +113,8 @@ def _patch_eventlet():
 
 
 def _patch_gevent():
-    import gevent.monkey
-    import gevent.signal
-
-    gevent.monkey.patch_all()
-    if gevent.version_info[0] == 0:  # pragma: no cover
-        # Signals aren't working in gevent versions <1.0,
-        # and aren't monkey patched by patch_all()
-        import signal
-
-        signal.signal = gevent.signal
+    from tacolib.geventx import monkey
+    monkey.patch_all()
 
 
 def maybe_patch_concurrency(argv=None, short_opts=None,
