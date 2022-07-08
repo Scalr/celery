@@ -125,6 +125,16 @@ def _patch_gevent():
         signal.signal = gevent.signal
 
 
+def _patch_threads():
+    try:
+        import tacolib.thread_cancellation
+
+        tacolib.thread_cancellation.patch_all()
+    except (ImportError, AttributeError) as err:
+        sys.stderr.write(f"Cannot patch threads. {err}.\n")
+
+
+
 def maybe_patch_concurrency(argv=None, short_opts=None,
                             long_opts=None, patches=None):
     """Apply eventlet/gevent monkeypatches.
@@ -138,7 +148,8 @@ def maybe_patch_concurrency(argv=None, short_opts=None,
     short_opts = short_opts if short_opts else ['-P']
     long_opts = long_opts if long_opts else ['--pool']
     patches = patches if patches else {'eventlet': _patch_eventlet,
-                                       'gevent': _patch_gevent}
+                                       'gevent': _patch_gevent,
+                                       'threads': _patch_threads}
     try:
         pool = _find_option_with_arg(argv, short_opts, long_opts)
     except KeyError:
