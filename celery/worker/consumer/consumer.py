@@ -11,6 +11,7 @@ import warnings
 from collections import defaultdict
 from time import sleep
 
+import amqp.exceptions
 from billiard.common import restart_state
 from billiard.exceptions import RestartFreqExceeded
 from kombu.asynchronous.semaphore import DummyLock
@@ -18,7 +19,6 @@ from kombu.exceptions import ContentDisallowed, DecodeError
 from kombu.utils.compat import _detect_environment
 from kombu.utils.encoding import safe_repr
 from kombu.utils.limits import TokenBucket
-import amqp.exceptions
 from vine import ppartial, promise
 
 from celery import bootsteps, signals
@@ -443,8 +443,10 @@ class Consumer:
         # Install timer to send heartbeats on gevent
         if self.gevent_env and self.amqheartbeat:
             hbtick = conn.heartbeat_check
-            logger.debug('Registring heartbeat timer for connection: {}'.format(id(conn)))
-            self.timer.call_repeatedly(int(self.amqheartbeat / self.amqheartbeat_rate), hbtick, (self.amqheartbeat_rate,))
+            logger.debug(f'Registring heartbeat timer for connection: {id(conn)}')
+            self.timer.call_repeatedly(
+                int(self.amqheartbeat / self.amqheartbeat_rate), hbtick, (self.amqheartbeat_rate,)
+            )
 
         return conn
 
