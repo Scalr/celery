@@ -4,7 +4,7 @@ from kombu.common import QoS, ignore_errors
 from celery import bootsteps
 from celery.utils.log import get_logger
 
-from .mingle import Mingle
+from .connection import Connection
 
 __all__ = ('Tasks',)
 
@@ -15,7 +15,7 @@ debug = logger.debug
 class Tasks(bootsteps.StartStopStep):
     """Bootstep starting the task message consumer."""
 
-    requires = (Mingle,)
+    requires = (Connection,)
 
     def __init__(self, c, **kwargs):
         c.task_consumer = c.qos = None

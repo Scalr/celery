@@ -128,6 +128,10 @@ def synloop(obj, connection, consumer, blueprint, hub, qos,
         try:
             perform_pending_operations()
             connection.drain_events(timeout=2.0)
+        except BrokenPipeError:
+            logger.warning("Broker unexpectedly closed TCP connection")
+            connection.close()
+            raise
         except socket.timeout:
             pass
         except OSError:

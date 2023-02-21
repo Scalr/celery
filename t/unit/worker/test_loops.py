@@ -163,6 +163,9 @@ class test_asynloop:
         assert last_call_args[0] == 10 / 2.0
         assert last_call_args[2] == (2.0,)
 
+        last_call_args[1]("rate")
+        x.connection.heartbeat_check.assert_called_with("rate")
+
     def task_context(self, sig, **kwargs):
         x, on_task = get_task_callback(self.app, **kwargs)
         message = self.task_message_from_sig(self.app, sig)
@@ -483,6 +486,14 @@ class test_synloop:
         x = X(self.app)
         x.close_then_error(x.connection.drain_events)
         assert synloop(*x.args) is None
+
+    def test_close_on_broken_pipe(self):
+        x = X(self.app)
+        x.connection.drain_events.side_effect = BrokenPipeError
+
+        with pytest.raises(BrokenPipeError):
+            synloop(*x.args)
+        x.connection.close.assert_called_with()
 
     def test_no_connection(self):
         x = X(self.app)

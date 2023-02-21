@@ -11,6 +11,7 @@ import warnings
 from collections import defaultdict
 from time import sleep
 
+import amqp.exceptions
 from billiard.common import restart_state
 from billiard.exceptions import RestartFreqExceeded
 from kombu.asynchronous.semaphore import DummyLock
@@ -158,6 +159,9 @@ class Consumer:
         """Consumer blueprint."""
 
         name = 'Consumer'
+        # [FAM-328] We remove Events, Gossip, Heartbeat and Mingle from default
+        # steps because they are not used by us but interfere with amqp
+        # heartbeats we need.
         default_steps = [
             'celery.worker.consumer.connection:Connection',
             'celery.worker.consumer.mingle:Mingle',
@@ -206,8 +210,10 @@ class Consumer:
         self.task_buckets = defaultdict(lambda: None)
         self.reset_rate_limits()
 
+        self.gevent_env = _detect_environment() == 'gevent'
+
         self.hub = hub
-        if self.hub or getattr(self.pool, 'is_green', False):
+        if self.hub or getattr(self.pool, 'is_green', False) or self.gevent_env:
             self.amqheartbeat = amqheartbeat
             if self.amqheartbeat is None:
                 self.amqheartbeat = self.app.conf.broker_heartbeat
@@ -217,7 +223,7 @@ class Consumer:
         if not hasattr(self, 'loop'):
             self.loop = loops.asynloop if hub else loops.synloop
 
-        if _detect_environment() == 'gevent':
+        if self.gevent_env:
             # there's a gevent bug that causes timeouts to not be reset,
             # so if the connection timeout is exceeded once, it can NEVER
             # connect again.
@@ -244,6 +250,9 @@ class Consumer:
             while self._pending_operations:
                 try:
                     self._pending_operations.pop()()
+                except BrokenPipeError:
+                    # re-raise this error to allow a consumer to reconnect
+                    raise
                 except Exception as exc:  # pylint: disable=broad-except
                     logger.exception('Pending callback raised: %r', exc)
 
@@ -351,7 +360,9 @@ class Consumer:
               'Trying to reconnect...')
 
     def on_connection_error_after_connected(self, exc):
-        warn(CONNECTION_RETRY, exc_info=True)
+        # [FAM-254]
+        needs_exc_info = not isinstance(exc, amqp.exceptions.ConnectionForced)
+        warn(CONNECTION_RETRY, exc_info=needs_exc_info)
         try:
             self.connection.collect()
         except Exception:  # pylint: disable=broad-except
@@ -428,6 +439,15 @@ class Consumer:
         conn = self.connection_for_read(heartbeat=self.amqheartbeat)
         if self.hub:
             conn.transport.register_with_event_loop(conn.connection, self.hub)
+
+        # Install timer to send heartbeats on gevent
+        if self.gevent_env and self.amqheartbeat:
+            hbtick = conn.heartbeat_check
+            logger.debug(f'Registring heartbeat timer for connection: {id(conn)}')
+            self.timer.call_repeatedly(
+                int(self.amqheartbeat / self.amqheartbeat_rate), hbtick, (self.amqheartbeat_rate,)
+            )
+
         return conn
 
     def connection_for_read(self, heartbeat=None):

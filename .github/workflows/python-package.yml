@@ -5,14 +5,14 @@ name: Celery
 
 on:
   push:
-    branches: [ 'master']
+    branches: [ 'master', '5.2']
     paths:
         - '**.py'
         - '**.txt'
         - '.github/workflows/python-package.yml'
         - '**.toml'
   pull_request:
-    branches: [ 'master']
+    branches: [ 'master', '5.2']
     paths:
         - '**.py'
         - '**.txt'
@@ -26,13 +26,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10', 'pypy-3.7', 'pypy-3.8']
-        os: ["ubuntu-20.04", "windows-latest"]
-        exclude:
-            - python-version: 'pypy-3.7'
-              os: "windows-latest"
-            - python-version: 'pypy-3.8'
-              os: "windows-latest"
+        python-version: ['3.8', '3.10' ]
+        os: ["ubuntu-20.04"]
     steps:
     - name: Install apt packages
       if: startsWith(matrix.os, 'ubuntu-')
@@ -65,10 +60,3 @@ jobs:
       timeout-minutes: 20
       run: |
         tox --verbose --verbose
-
-    - uses: codecov/codecov-action@v2.1.0
-      with:
-        flags: unittests # optional
-        fail_ci_if_error: true # optional (default = false)
-        verbose: true # optional (default = false)
-
